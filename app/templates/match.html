@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block title %}Survey Validator - Match Responses{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title mb-0">Match Survey Responses</h3>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    {{ form.eligibility_file.label(class="form-label") }}
+                                    {{ form.eligibility_file(class="form-control") }}
+                                    <small class="form-text text-muted">Upload the Excel file containing eligible responses</small>
+                                    {% if form.eligibility_file.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {% for error in form.eligibility_file.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    {{ form.survey_file.label(class="form-label") }}
+                                    {{ form.survey_file(class="form-control") }}
+                                    <small class="form-text text-muted">Upload the CSV file containing survey responses</small>
+                                    {% if form.survey_file.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {% for error in form.survey_file.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    {{ form.sheet_name.label(class="form-label") }}
+                                    {{ form.sheet_name(class="form-control") }}
+                                    <small class="form-text text-muted">Enter the name of the sheet containing eligible responses</small>
+                                    {% if form.sheet_name.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {% for error in form.sheet_name.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    {{ form.matching_method.label(class="form-label") }}
+                                    {{ form.matching_method(class="form-control") }}
+                                    {% if form.matching_method.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {% for error in form.matching_method.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3" id="time-window-container">
+                                    {{ form.time_window.label(class="form-label") }}
+                                    {{ form.time_window(class="form-control") }}
+                                    <small class="form-text text-muted">Time window for matching IP addresses (1-1440 minutes)</small>
+                                    {% if form.time_window.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {% for error in form.time_window.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check mb-3">
+                                    {{ form.skip_header(class="form-check-input") }}
+                                    {{ form.skip_header.label(class="form-check-label") }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">Match Responses</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if results %}
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title mb-0">Matching Results</h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        Successfully matched {{ results.matched_count }} out of {{ results.total_count }} eligible respondents 
+                        ({{ "%.1f"|format(results.match_percentage) }}%).
+                    </div>
+
+                    {% if results.matched_data %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Eligibility Email</th>
+                                    <th>Eligibility IP</th>
+                                    <th>Survey Response ID</th>
+                                    <th>Match Type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for match in results.matched_data[:5] %}
+                                <tr>
+                                    <td>{{ match.eligibility_email }}</td>
+                                    <td>{{ match.eligibility_ip }}</td>
+                                    <td>{{ match.survey_response_id }}</td>
+                                    <td>{{ match.match_type }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endif %}
+
+                    {% if results.unmatched_emails %}
+                    <div class="alert alert-warning mt-3">
+                        <h5>Unmatched Emails ({{ results.unmatched_emails|length }})</h5>
+                        <ul class="mb-0">
+                            {% for email in results.unmatched_emails[:5] %}
+                            <li>{{ email }}</li>
+                            {% endfor %}
+                            {% if results.unmatched_emails|length > 5 %}
+                            <li>... and {{ results.unmatched_emails|length - 5 }} more</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    <div class="mt-3">
+                        <a href="{{ url_for('main.download_matched_data') }}" class="btn btn-success">
+                            Download Matched Data (CSV)
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const matchingMethod = document.getElementById('matching_method');
+    const timeWindowContainer = document.getElementById('time-window-container');
+
+    matchingMethod.addEventListener('change', function() {
+        timeWindowContainer.style.display = this.value === 'ip_time' ? 'block' : 'none';
+    });
+
+    // Initial state
+    timeWindowContainer.style.display = matchingMethod.value === 'ip_time' ? 'block' : 'none';
+});
+</script>
+{% endblock %}
+{% endblock %} 

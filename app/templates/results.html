@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Survey Validator - Validation Results{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Summary Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title mb-0">Validation Summary</h3>
+                </div>
+                <div class="card-body">
+                    <pre class="bg-light p-3 rounded"><code>{{ report_content }}</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Download Results -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title mb-0">Download Results</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="card mb-3">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">Validation Report</h5>
+                                    <p class="card-text">{{ files.report.name }}</p>
+                                    <a href="{{ files.report.path }}" class="btn btn-primary" download>Download</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card mb-3">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">Eligible Respondents</h5>
+                                    <p class="card-text">{{ files.eligible.name }}</p>
+                                    {% if files.eligible.exists %}
+                                    <a href="{{ files.eligible.path }}" class="btn btn-success" download>Download CSV</a>
+                                    {% else %}
+                                    <button class="btn btn-secondary" disabled>No Data</button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card mb-3">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">Ineligible Respondents</h5>
+                                    <p class="card-text">{{ files.ineligible.name }}</p>
+                                    {% if files.ineligible.exists %}
+                                    <a href="{{ files.ineligible.path }}" class="btn btn-danger" download>Download CSV</a>
+                                    {% else %}
+                                    <button class="btn btn-secondary" disabled>No Data</button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card mb-3">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">Detailed Excel Report</h5>
+                                    <p class="card-text">Multiple tabs for detailed analysis</p>
+                                    {% if files.excel.exists %}
+                                    <a href="{{ files.excel.path }}" class="btn btn-info" download>Download Excel</a>
+                                    {% else %}
+                                    <button class="btn btn-secondary" disabled>No Data</button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

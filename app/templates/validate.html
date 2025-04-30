@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Survey Validator - Validate Surveys{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title mb-0">Validate Surveys</h3>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="community_file" class="form-label">Community Survey File (CSV)</label>
+                            <input type="file" class="form-control" id="community_file" name="community_file" accept=".csv" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="incentive_file" class="form-label">Incentive Survey File (CSV)</label>
+                            <input type="file" class="form-control" id="incentive_file" name="incentive_file" accept=".csv" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="config_file" class="form-label">Configuration File (Optional)</label>
+                            <input type="file" class="form-control" id="config_file" name="config_file" accept=".json">
+                            <div class="form-text">Upload a custom configuration file to override default validation settings.</div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="start_date" class="form-label">Start Date</label>
+                                    <input type="date" class="form-control" id="start_date" name="start_date" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="end_date" class="form-label">End Date</label>
+                                    <input type="date" class="form-control" id="end_date" name="end_date" required>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">Validate Surveys</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Set default dates (7 days ago to today)
+    document.addEventListener('DOMContentLoaded', function() {
+        const today = new Date();
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(today.getDate() - 7);
+        
+        document.getElementById('start_date').value = sevenDaysAgo.toISOString().split('T')[0];
+        document.getElementById('end_date').value = today.toISOString().split('T')[0];
+    });
+</script>
+{% endblock %} 

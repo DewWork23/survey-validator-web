@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Survey Validator - Home{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8 text-center">
+            <h1 class="display-4 mb-4">Welcome to Survey Validator</h1>
+            <p class="lead mb-4">A powerful tool for validating and analyzing survey responses</p>
+            
+            {% if not current_user.is_authenticated %}
+            <div class="mb-4">
+                <a href="{{ url_for('auth.login') }}" class="btn btn-primary btn-lg">Login to Get Started</a>
+            </div>
+            {% else %}
+            <div class="mb-4">
+                <a href="{{ url_for('main.validate') }}" class="btn btn-primary btn-lg">Start Validation</a>
+                <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-primary btn-lg ms-2">View Dashboard</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row mt-5">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Survey Validation</h5>
+                    <p class="card-text">Upload and validate community and incentive survey responses with advanced filtering options.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Detailed Analysis</h5>
+                    <p class="card-text">Get comprehensive reports and statistics about survey responses and validation results.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Export Results</h5>
+                    <p class="card-text">Download validation results in various formats for further analysis or reporting.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
