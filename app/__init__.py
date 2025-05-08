@@ -36,14 +36,14 @@ def create_app():
     def load_user(user_id):
         return models.User.get(user_id)
 
-    # Register blueprints here if needed
-    # from app.routes import main, auth, demographics
-    # app.register_blueprint(main)
-    # app.register_blueprint(auth)
-    # app.register_blueprint(demographics)
+    # Register blueprints here
+    from app.routes import init_app as register_blueprints
+    register_blueprints(app)
 
     return app
 
 # Import and register blueprints
-from app.routes import init_app
-init_app(app) 
+# from app.routes import main, auth, demographics
+# app.register_blueprint(main)
+# app.register_blueprint(auth)
+# app.register_blueprint(demographics) 
