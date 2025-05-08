@@ -20,6 +20,7 @@ import json
 import re
 import ipaddress
 import tempfile
+import csv
 
 # Set up logging
 logging.basicConfig(
@@ -360,15 +361,14 @@ def read_and_prepare_dataframe(file_path, date_range=None):
         pandas.DataFrame: Preprocessed DataFrame
     """
     try:
-        # Clean up the CSV before reading
-        cleaned_csv_path = file_path + "_cleaned.csv"
-        with open(file_path, 'r', encoding='utf-8', errors='ignore') as infile, open(cleaned_csv_path, 'w', encoding='utf-8') as outfile:
-            for line in infile:
-                outfile.write(line.replace('"', '\"'))
-
-        # Now read the cleaned file, skipping bad lines and logging them
-        df = pd.read_csv(cleaned_csv_path, sep='\t', on_bad_lines=log_bad_line)
-        print(f"Total bad lines skipped: {len(bad_lines)}")
+        # Print the first 5 lines for debugging
+        print("First 5 lines of file for delimiter/format check:")
+        with open(file_path, 'r', encoding='utf-8') as f:
+            for i in range(5):
+                print(f.readline().strip())
+        # Read the file with robust pandas options
+        df = pd.read_csv(file_path, sep=',', on_bad_lines='skip', engine='python')
+        print(f"Read {len(df)} rows")
         logger.info(f"Successfully read {file_path} with {len(df)} rows and {len(df.columns)} columns")
         
         # Filter out header rows if they exist
