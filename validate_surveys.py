@@ -366,8 +366,8 @@ def read_and_prepare_dataframe(file_path, date_range=None):
         with open(file_path, 'r', encoding='utf-8') as f:
             for i in range(5):
                 print(f.readline().strip())
-        # Read the file with robust pandas options
-        df = pd.read_csv(file_path, sep=',', on_bad_lines='skip', engine='python')
+        # Read the file with robust pandas options, skipping extra header rows
+        df = pd.read_csv(file_path, sep=',', on_bad_lines='skip', engine='python', skiprows=[1,2])
         print(f"Read {len(df)} rows")
         logger.info(f"Successfully read {file_path} with {len(df)} rows and {len(df.columns)} columns")
         
