@@ -21,6 +21,12 @@ def process_survey_files(self, community_path, incentive_path, start_date, end_d
         # Process surveys in smaller chunks
         chunk_size = 500  # Reduced from 1000 to 500 for better memory management
         
+        # Convert date strings to datetime objects
+        start_date_dt = pd.to_datetime(start_date)
+        end_date_dt = pd.to_datetime(end_date).replace(hour=23, minute=59, second=59)
+        
+        logger.info(f"Processing surveys from {start_date_dt} to {end_date_dt}")
+        
         # Read community survey in chunks
         community_chunks = pd.read_csv(
             community_path, 
@@ -73,6 +79,26 @@ def process_survey_files(self, community_path, incentive_path, start_date, end_d
                     }
                 )
                 
+                # Convert date columns to datetime
+                if 'RecordedDate' in comm_chunk.columns:
+                    comm_chunk['RecordedDate'] = pd.to_datetime(comm_chunk['RecordedDate'], errors='coerce')
+                if 'RecordedDate' in inc_chunk.columns:
+                    inc_chunk['RecordedDate'] = pd.to_datetime(inc_chunk['RecordedDate'], errors='coerce')
+                
+                # Filter chunks by date range
+                comm_chunk = comm_chunk[
+                    (comm_chunk['RecordedDate'] >= start_date_dt) & 
+                    (comm_chunk['RecordedDate'] <= end_date_dt)
+                ]
+                inc_chunk = inc_chunk[
+                    (inc_chunk['RecordedDate'] >= start_date_dt) & 
+                    (inc_chunk['RecordedDate'] <= end_date_dt)
+                ]
+                
+                # Skip empty chunks
+                if len(comm_chunk) == 0 and len(inc_chunk) == 0:
+                    continue
+                
                 # Process this chunk
                 chunk_eligible, chunk_ineligible, chunk_stats = process_surveys(
                     comm_chunk, inc_chunk, start_date, end_date, config
@@ -85,6 +111,9 @@ def process_survey_files(self, community_path, incentive_path, start_date, end_d
                 # Update statistics
                 for key in detailed_statistics:
                     detailed_statistics[key] += chunk_stats.get(key, 0)
+                
+                # Log progress
+                logger.info(f"Processed chunk {i + 1}: {len(chunk_eligible)} eligible, {len(chunk_ineligible)} ineligible")
                 
                 # Clear memory
                 del comm_chunk
@@ -126,10 +155,31 @@ def process_survey_files(self, community_path, incentive_path, start_date, end_d
             f.write(f"Analysis generated on: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n")
             f.write(f"Date range: {start_date} to {end_date}\n\n")
             
+            f.write("Validation Criteria:\n")
+            f.write("-------------------\n")
+            f.write(f"Distance threshold: {config.get('distance_threshold', 50)} miles\n")
+            f.write(f"Minimum completion time: {config.get('min_completion_time', 60)} seconds\n")
+            f.write(f"Captcha threshold: {config.get('captcha_threshold', 0.5)}\n")
+            f.write(f"Validation failure threshold: {config.get('validation_failure_threshold', 3)}\n")
+            f.write(f"Heavily shared IP threshold: {config.get('heavily_shared_ip_threshold', 10)}\n")
+            f.write(f"Maximum whitelist distance: {config.get('max_whitelist_distance', 400)} miles\n")
+            f.write(f"IP whitelist entries: {len(config.get('ip_whitelist', []))}\n\n")
+            
             f.write("Summary Statistics:\n")
             f.write("-------------------\n")
-            for key, value in detailed_statistics.items():
-                f.write(f"{key}: {value}\n")
+            f.write(f"Total incentive survey responses: {detailed_statistics['total_incentive']}\n")
+            f.write(f"Total community survey responses: {detailed_statistics['total_community']}\n")
+            f.write(f"Respondents who only completed incentive survey: {detailed_statistics['incentive_only']}\n\n")
+            
+            f.write("Matching Statistics:\n")
+            f.write("-------------------\n")
+            f.write(f"Total IP matches found: {detailed_statistics['total_ip_matches']}\n")
+            f.write(f"Unique community surveys involved in matches: {detailed_statistics['unique_community_matched']}\n\n")
+            
+            f.write("Eligibility Results:\n")
+            f.write("-------------------\n")
+            f.write(f"Eligible respondents for incentives: {detailed_statistics['eligible']}\n")
+            f.write(f"Ineligible matched respondents: {detailed_statistics['ineligible']}\n")
         
         return {
             'status': 'SUCCESS',
