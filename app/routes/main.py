@@ -128,7 +128,8 @@ def validate():
                     outfile.write(line.replace('"', '\"'))
 
             # Now read the cleaned file
-            community_df = pd.read_csv(os.path.join(current_app.config['UPLOAD_FOLDER'], f"cleaned_{community_filename}"), sep='\t')
+            print(f"Reading community survey CSV: {os.path.join(current_app.config['UPLOAD_FOLDER'], f'cleaned_{community_filename}')}")
+            community_df = pd.read_csv(community_path, sep=',', on_bad_lines='skip', engine='python', skiprows=[1,2])
             
             # Clean up the CSV before reading
             with open(incentive_path, 'r', encoding='utf-8', errors='ignore') as infile, open(os.path.join(current_app.config['UPLOAD_FOLDER'], f"cleaned_{incentive_filename}"), 'w', encoding='utf-8') as outfile:
@@ -137,7 +138,8 @@ def validate():
                     outfile.write(line.replace('"', '\"'))
 
             # Now read the cleaned file
-            incentive_df = pd.read_csv(os.path.join(current_app.config['UPLOAD_FOLDER'], f"cleaned_{incentive_filename}"), sep='\t')
+            print(f"Reading incentive survey CSV: {os.path.join(current_app.config['UPLOAD_FOLDER'], f'cleaned_{incentive_filename}')}")
+            incentive_df = pd.read_csv(incentive_path, sep=',', on_bad_lines='skip', engine='python', skiprows=[1,2])
             
             eligible_respondents, ineligible_respondents, detailed_statistics = process_surveys(
                 community_path, incentive_path, start_date, end_date, config
@@ -368,7 +370,8 @@ def match():
                         outfile.write(line.replace('"', '\"'))
 
                 # Now read the cleaned file
-                survey_df = pd.read_csv(cleaned_csv_path, header=0, skiprows=[1,2])  # Use first row as header, skip next two
+                print(f"Reading uploaded survey CSV: {cleaned_csv_path}")
+                survey_df = pd.read_csv(cleaned_csv_path, sep=',', on_bad_lines='skip', engine='python', skiprows=[1,2])
 
                 # Debug: Print first 10 unique IPs and first 5 timestamps from survey_df
                 if 'IPAddress' in survey_df.columns:

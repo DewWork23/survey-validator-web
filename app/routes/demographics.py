@@ -24,7 +24,7 @@ def demographics():
                 flash('Only CSV files are allowed')
                 return redirect(request.url)
             try:
-                df = pd.read_csv(survey_file)
+                df = pd.read_csv(survey_file, sep=',', on_bad_lines='skip', engine='python', skiprows=[1,2])
                 # Save to a temp file and store path in session
                 temp = tempfile.NamedTemporaryFile(delete=False, suffix='.csv')
                 df.to_csv(temp.name, index=False)
