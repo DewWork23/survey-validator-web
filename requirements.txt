@@ -1,3 +1,4 @@
+--only-binary=:all:
 pip>=24.0
 setuptools>=65.0
 wheel>=0.38
