@@ -9,4 +9,6 @@ Werkzeug==2.3.7
 python-dotenv==1.0.0
 gunicorn==21.2.0
 XlsxWriter==3.1.2
-plotly==5.18.0 
+plotly==5.18.0
+Flask-SQLAlchemy
+psycopg2-binary 
