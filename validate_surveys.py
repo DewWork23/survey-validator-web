@@ -44,6 +44,11 @@ DEFAULT_CONFIG = {
 ROBESON_CENTER = (34.6390, -79.1003)  # Robeson County center coordinates
 DEGREES_TO_MILES = 69  # 1 degree ≈ 69 miles
 
+bad_lines = []
+
+def log_bad_line(bad_line):
+    bad_lines.append(bad_line)
+    print(f"Skipped bad line: {bad_line}")
 
 class ValidationError(Exception):
     """Custom exception for validation errors."""
@@ -359,11 +364,11 @@ def read_and_prepare_dataframe(file_path, date_range=None):
         cleaned_csv_path = file_path + "_cleaned.csv"
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as infile, open(cleaned_csv_path, 'w', encoding='utf-8') as outfile:
             for line in infile:
-                # Remove problematic characters or fix quoting here if needed
                 outfile.write(line.replace('"', '\"'))
 
-        # Now read the cleaned file
-        df = pd.read_csv(cleaned_csv_path, sep='\t')
+        # Now read the cleaned file, skipping bad lines and logging them
+        df = pd.read_csv(cleaned_csv_path, sep='\t', on_bad_lines=log_bad_line)
+        print(f"Total bad lines skipped: {len(bad_lines)}")
         logger.info(f"Successfully read {file_path} with {len(df)} rows and {len(df.columns)} columns")
         
         # Filter out header rows if they exist
