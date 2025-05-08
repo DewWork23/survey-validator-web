@@ -16,7 +16,8 @@ class User(UserMixin):
     
     @staticmethod
     def get(user_id):
-        db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'users.db')
+        db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'users.db')
+        print("[user.py] DB path:", db_path)
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
@@ -37,7 +38,8 @@ class User(UserMixin):
     
     @staticmethod
     def get_by_username(username):
-        db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'users.db')
+        db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'users.db')
+        print("[user.py] DB path:", db_path)
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
@@ -58,7 +60,8 @@ class User(UserMixin):
     
     @staticmethod
     def create(username, email, password, is_admin=False):
-        db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'users.db')
+        db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'users.db')
+        print("[user.py] DB path:", db_path)
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         

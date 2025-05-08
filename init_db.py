@@ -1,7 +1,8 @@
 import sqlite3
 import os
 
-db_path = os.path.join(os.path.dirname(__file__), 'app', 'users.db')
+db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'app', 'users.db')
+print("[init_db.py] DB path:", db_path)
 conn = sqlite3.connect(db_path)
 cursor = conn.cursor()
 cursor.execute('''
