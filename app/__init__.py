@@ -2,11 +2,15 @@ from flask import Flask
 from flask_login import LoginManager
 from flask_sqlalchemy import SQLAlchemy
 import os
+from celery import Celery
 
 # Initialize SQLAlchemy
 # This will be imported by models
 # (If already present, keep only one instance)
 db = SQLAlchemy()
+
+# Initialize Celery
+celery = Celery()
 
 # Initialize Flask app
 # Use an app factory pattern for best practice
@@ -18,6 +22,13 @@ def create_app():
     app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload size
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    
+    # Celery configuration
+    app.config['CELERY_BROKER_URL'] = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+    app.config['CELERY_RESULT_BACKEND'] = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+    
+    # Configure Celery
+    celery.conf.update(app.config)
 
     # Ensure upload and results directories exist
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)

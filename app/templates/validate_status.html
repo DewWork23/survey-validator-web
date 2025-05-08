@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Processing Survey Validation</h3>
+                </div>
+                <div class="card-body">
+                    <div id="status-container">
+                        <div class="progress mb-3">
+                            <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 role="progressbar" style="width: 0%"></div>
+                        </div>
+                        <p id="status-message" class="text-center">Initializing...</p>
+                    </div>
+                    <div id="results-container" style="display: none;">
+                        <h4>Processing Complete!</h4>
+                        <div id="results-content"></div>
+                        <div class="mt-3">
+                            <a href="{{ url_for('main.dashboard') }}" class="btn btn-primary">Return to Dashboard</a>
+                        </div>
+                    </div>
+                    <div id="error-container" style="display: none;">
+                        <div class="alert alert-danger">
+                            <h4>Error Occurred</h4>
+                            <p id="error-message"></p>
+                        </div>
+                        <div class="mt-3">
+                            <a href="{{ url_for('main.validate') }}" class="btn btn-primary">Try Again</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function updateStatus() {
+    fetch("{{ url_for('main.validate_status') }}")
+        .then(response => response.json())
+        .then(data => {
+            if (data.state === 'PENDING') {
+                document.getElementById('status-message').textContent = data.status;
+                document.getElementById('progress-bar').style.width = '0%';
+            } else if (data.state === 'PROGRESS') {
+                document.getElementById('status-message').textContent = data.status;
+                if (data.total !== 'unknown') {
+                    const progress = (data.current / data.total) * 100;
+                    document.getElementById('progress-bar').style.width = progress + '%';
+                }
+            } else if (data.state === 'SUCCESS') {
+                document.getElementById('status-container').style.display = 'none';
+                document.getElementById('results-container').style.display = 'block';
+                
+                const results = data.result;
+                let resultsHtml = '<ul class="list-group">';
+                
+                if (results.report_file) {
+                    resultsHtml += `
+                        <li class="list-group-item">
+                            <a href="{{ url_for('main.download_file', filename='') }}${results.report_file}">
+                                Download Validation Report
+                            </a>
+                        </li>`;
+                }
+                if (results.eligible_file) {
+                    resultsHtml += `
+                        <li class="list-group-item">
+                            <a href="{{ url_for('main.download_file', filename='') }}${results.eligible_file}">
+                                Download Eligible Respondents
+                            </a>
+                        </li>`;
+                }
+                if (results.ineligible_file) {
+                    resultsHtml += `
+                        <li class="list-group-item">
+                            <a href="{{ url_for('main.download_file', filename='') }}${results.ineligible_file}">
+                                Download Ineligible Respondents
+                            </a>
+                        </li>`;
+                }
+                
+                resultsHtml += '</ul>';
+                document.getElementById('results-content').innerHTML = resultsHtml;
+            } else {
+                document.getElementById('status-container').style.display = 'none';
+                document.getElementById('error-container').style.display = 'block';
+                document.getElementById('error-message').textContent = data.error;
+            }
+        })
+        .catch(error => {
+            document.getElementById('status-container').style.display = 'none';
+            document.getElementById('error-container').style.display = 'block';
+            document.getElementById('error-message').textContent = 'Error checking status: ' + error;
+        });
+}
+
+// Update status every 2 seconds
+setInterval(updateStatus, 2000);
+// Initial update
+updateStatus();
+</script>
+{% endblock %} 

@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 from datetime import datetime
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_from_directory, current_app, session, Response, send_file
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_from_directory, current_app, session, Response, send_file, jsonify
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 import sys
@@ -15,6 +15,7 @@ import difflib
 import uuid
 import numpy as np
 import collections
+from app.tasks import process_survey_files
 
 # Import validate_surveys from the root directory
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -92,177 +93,92 @@ def validate():
             flash('Start and end dates are required')
             return redirect(request.url)
         
-        # Save uploaded files
-        community_filename = secure_filename(community_file.filename)
-        incentive_filename = secure_filename(incentive_file.filename)
-        
-        community_path = os.path.join(current_app.config['UPLOAD_FOLDER'], community_filename)
-        incentive_path = os.path.join(current_app.config['UPLOAD_FOLDER'], incentive_filename)
-        
-        community_file.save(community_path)
-        incentive_file.save(incentive_path)
-        
-        # Load config with default whitelist
-        config = load_default_config()
-        
-        # Check if config file was uploaded
-        if 'config_file' in request.files and request.files['config_file'].filename != '':
-            config_file = request.files['config_file']
-            if config_file.filename.endswith('.json'):
-                config_filename = secure_filename(config_file.filename)
-                config_path = os.path.join(current_app.config['UPLOAD_FOLDER'], config_filename)
-                config_file.save(config_path)
-                user_config = load_config(config_path)
-                # Merge user config with default config
-                config.update(user_config)
-            else:
-                flash('Configuration file must be a JSON file')
-                return redirect(request.url)
-        
-        # Process surveys
         try:
-            # Clean up the CSV before reading
-            with open(community_path, 'r', encoding='utf-8', errors='ignore') as infile, open(os.path.join(current_app.config['UPLOAD_FOLDER'], f"cleaned_{community_filename}"), 'w', encoding='utf-8') as outfile:
-                for line in infile:
-                    # Remove problematic characters or fix quoting here if needed
-                    outfile.write(line.replace('"', '\"'))
-
-            # Now read the cleaned file
-            print(f"Reading community survey CSV: {os.path.join(current_app.config['UPLOAD_FOLDER'], f'cleaned_{community_filename}')}")
-            community_df = pd.read_csv(community_path, sep=',', on_bad_lines='skip', engine='python', skiprows=[1,2])
+            # Save uploaded files
+            community_filename = secure_filename(community_file.filename)
+            incentive_filename = secure_filename(incentive_file.filename)
             
-            # Clean up the CSV before reading
-            with open(incentive_path, 'r', encoding='utf-8', errors='ignore') as infile, open(os.path.join(current_app.config['UPLOAD_FOLDER'], f"cleaned_{incentive_filename}"), 'w', encoding='utf-8') as outfile:
-                for line in infile:
-                    # Remove problematic characters or fix quoting here if needed
-                    outfile.write(line.replace('"', '\"'))
-
-            # Now read the cleaned file
-            print(f"Reading incentive survey CSV: {os.path.join(current_app.config['UPLOAD_FOLDER'], f'cleaned_{incentive_filename}')}")
-            incentive_df = pd.read_csv(incentive_path, sep=',', on_bad_lines='skip', engine='python', skiprows=[1,2])
+            community_path = os.path.join(current_app.config['UPLOAD_FOLDER'], community_filename)
+            incentive_path = os.path.join(current_app.config['UPLOAD_FOLDER'], incentive_filename)
             
-            eligible_respondents, ineligible_respondents, detailed_statistics = process_surveys(
-                community_path, incentive_path, start_date, end_date, config
-            )
+            community_file.save(community_path)
+            incentive_file.save(incentive_path)
             
-            # Generate timestamp for output files
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+            # Load config with default whitelist
+            config = load_default_config()
+            config_path = None
             
-            # Save results
-            results_dir = current_app.config['RESULTS_FOLDER']
+            # Check if config file was uploaded
+            if 'config_file' in request.files and request.files['config_file'].filename != '':
+                config_file = request.files['config_file']
+                if config_file.filename.endswith('.json'):
+                    config_filename = secure_filename(config_file.filename)
+                    config_path = os.path.join(current_app.config['UPLOAD_FOLDER'], config_filename)
+                    config_file.save(config_path)
+                    user_config = load_config(config_path)
+                    # Merge user config with default config
+                    config.update(user_config)
+                else:
+                    flash('Configuration file must be a JSON file')
+                    return redirect(request.url)
             
-            # Save eligible respondents to CSV
-            if eligible_respondents:
-                eligible_df = pd.DataFrame(eligible_respondents)
-                eligible_filename = f"eligible_respondents_{start_date}_to_{end_date}_{timestamp}.csv"
-                eligible_path = os.path.join(results_dir, eligible_filename)
-                eligible_df.to_csv(eligible_path, index=False)
-                
-                # Create Excel workbook with multiple tabs
-                excel_filename = f"survey_results_{start_date}_to_{end_date}_{timestamp}.xlsx"
-                excel_path = os.path.join(results_dir, excel_filename)
-                
-                with pd.ExcelWriter(excel_path, engine='openpyxl') as writer:
-                    # Convert Distance column to numeric for filtering
-                    eligible_df['distance_numeric'] = eligible_df['Distance'].str.replace(' miles', '').astype(float)
-                    
-                    # Create "Within Range" tab - ALL respondents within distance threshold
-                    distance_threshold = config.get('distance_threshold', 50)
-                    within_range = eligible_df[eligible_df['distance_numeric'] <= distance_threshold]
-                    within_range = within_range.drop(columns=['distance_numeric'])
-                    within_range.to_excel(writer, sheet_name='Within Range', index=False)
-                    
-                    # Create "Whitelisted Only" tab - ONLY respondents outside distance threshold eligible due to whitelist
-                    whitelisted_only = eligible_df[
-                        (eligible_df['distance_numeric'] > distance_threshold) & 
-                        (eligible_df['IPWhitelisted'] == 'Yes')
-                    ]
-                    whitelisted_only = whitelisted_only.drop(columns=['distance_numeric'])
-                    whitelisted_only.to_excel(writer, sheet_name='Whitelisted Only', index=False)
-                    
-                    # Create a tab for all whitelisted respondents
-                    all_whitelisted = eligible_df[eligible_df['IPWhitelisted'] == 'Yes']
-                    all_whitelisted = all_whitelisted.drop(columns=['distance_numeric'])
-                    all_whitelisted.to_excel(writer, sheet_name='All Whitelisted', index=False)
-                    
-                    # Add a summary tab
-                    summary_data = {
-                        'Category': [
-                            'Total Eligible', 
-                            f'Within {distance_threshold} miles', 
-                            f'Outside {distance_threshold} miles (Whitelisted Only)',
-                            'Total Whitelisted (any distance)'
-                        ],
-                        'Count': [
-                            len(eligible_df),
-                            len(within_range),
-                            len(whitelisted_only),
-                            len(all_whitelisted)
-                        ]
-                    }
-                    pd.DataFrame(summary_data).to_excel(writer, sheet_name='Summary', index=False)
-                    
-                    # Export the original data with all columns
-                    eligible_df = eligible_df.drop(columns=['distance_numeric'])
-                    eligible_df.to_excel(writer, sheet_name='All Eligible', index=False)
+            # Start background task
+            task = process_survey_files.delay(community_path, incentive_path, start_date, end_date, config_path)
             
-            # Save ineligible respondents
-            if ineligible_respondents:
-                ineligible_df = pd.DataFrame(ineligible_respondents)
-                ineligible_filename = f"ineligible_respondents_{start_date}_to_{end_date}_{timestamp}.csv"
-                ineligible_path = os.path.join(results_dir, ineligible_filename)
-                ineligible_df.to_csv(ineligible_path, index=False)
+            # Store task ID in session
+            session['task_id'] = task.id
             
-            # Save validation report
-            report_filename = f"validation_report_{start_date}_to_{end_date}_{timestamp}.txt"
-            report_path = os.path.join(results_dir, report_filename)
-            
-            with open(report_path, 'w') as f:
-                f.write("SURVEY VALIDATION AND ELIGIBILITY ANALYSIS\n")
-                f.write("========================================\n\n")
-                f.write(f"Analysis generated on: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n")
-                f.write(f"Date range: {start_date} to {end_date}\n\n")
-                
-                f.write("Validation Criteria:\n")
-                f.write("-------------------\n")
-                f.write(f"Distance threshold: {config.get('distance_threshold', 50)} miles\n")
-                f.write(f"Minimum completion time: {config.get('min_completion_time', 60)} seconds\n")
-                f.write(f"Captcha threshold: {config.get('captcha_threshold', 0.5)}\n")
-                f.write(f"Validation failure threshold: {config.get('validation_failure_threshold', 3)}\n")
-                f.write(f"Heavily shared IP threshold: {config.get('heavily_shared_ip_threshold', 10)}\n")
-                f.write(f"Maximum whitelist distance: {config.get('max_whitelist_distance', 400)} miles\n")
-                f.write(f"IP whitelist entries: {len(config.get('ip_whitelist', []))}\n\n")
-                
-                f.write("Summary Statistics:\n")
-                f.write("-------------------\n")
-                f.write(f"Total incentive survey responses: {detailed_statistics.get('total_incentive', 0)}\n")
-                f.write(f"Total community survey responses: {detailed_statistics.get('total_community', 0)}\n")
-                f.write(f"Respondents who only completed incentive survey: {detailed_statistics.get('incentive_only', 0)}\n")
-                
-                f.write("\nMatching Statistics:\n")
-                f.write("-------------------\n")
-                f.write(f"Total IP matches found: {detailed_statistics.get('total_ip_matches', 0)}\n")
-                f.write(f"Unique community surveys involved in matches: {detailed_statistics.get('unique_community_matched', 0)}\n")
-                
-                f.write("\nEligibility Results:\n")
-                f.write("-------------------\n")
-                f.write(f"Eligible respondents for incentives: {detailed_statistics.get('eligible', 0)}\n")
-                f.write(f"Ineligible matched respondents: {detailed_statistics.get('ineligible', 0)}\n")
-                
-                if 'whitelist_matches' in detailed_statistics:
-                    f.write("\nWhitelist Analysis:\n")
-                    f.write("------------------\n")
-                    f.write(f"Total respondents with whitelisted IPs: {detailed_statistics.get('whitelist_matches', 0)}\n")
-                    f.write(f"Eligible respondents with whitelisted IPs: {detailed_statistics.get('whitelist_eligible', 0)}\n")
-            
-            # Redirect to results page with Excel file info
-            return redirect(url_for('main.results', report=report_filename, excel=excel_filename if eligible_respondents else None))
+            # Redirect to status page
+            return redirect(url_for('main.validate_status'))
             
         except Exception as e:
-            flash(f'Error processing surveys: {str(e)}')
+            flash(f'Error processing files: {str(e)}')
             return redirect(request.url)
     
     return render_template('validate.html')
+
+@main.route('/validate/status')
+@login_required
+def validate_status():
+    task_id = session.get('task_id')
+    if not task_id:
+        return redirect(url_for('main.validate'))
+    
+    task = process_survey_files.AsyncResult(task_id)
+    
+    if task.state == 'PENDING':
+        response = {
+            'state': task.state,
+            'status': 'Task is pending...'
+        }
+    elif task.state == 'PROGRESS':
+        response = {
+            'state': task.state,
+            'current': task.info.get('current', 0),
+            'total': task.info.get('total', 'unknown'),
+            'status': task.info.get('status', '')
+        }
+    elif task.state == 'SUCCESS':
+        response = {
+            'state': task.state,
+            'result': task.info
+        }
+        # Clear task ID from session
+        session.pop('task_id', None)
+    else:
+        response = {
+            'state': task.state,
+            'error': str(task.info)
+        }
+        # Clear task ID from session
+        session.pop('task_id', None)
+    
+    return jsonify(response)
+
+@main.route('/validate/status-page')
+@login_required
+def validate_status_page():
+    return render_template('validate_status.html')
 
 @main.route('/results')
 @login_required
