@@ -19,6 +19,7 @@ import logging
 import json
 import re
 import ipaddress
+import tempfile
 
 # Set up logging
 logging.basicConfig(
@@ -354,12 +355,20 @@ def read_and_prepare_dataframe(file_path, date_range=None):
         pandas.DataFrame: Preprocessed DataFrame
     """
     try:
-        df = pd.read_csv(file_path)
+        # Clean up the CSV before reading
+        cleaned_csv_path = file_path + "_cleaned.csv"
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as infile, open(cleaned_csv_path, 'w', encoding='utf-8') as outfile:
+            for line in infile:
+                # Remove problematic characters or fix quoting here if needed
+                outfile.write(line.replace('"', '\"'))
+
+        # Now read the cleaned file
+        df = pd.read_csv(cleaned_csv_path, sep='\t')
         logger.info(f"Successfully read {file_path} with {len(df)} rows and {len(df.columns)} columns")
         
         # Filter out header rows if they exist
         if 'ResponseId' in df.columns:
-            df = df[~((df['ResponseId'] == '{"ImportId":"_recordId"}') | 
+            df = df[~((df['ResponseId'] == '{\"ImportId\":\"_recordId\"}') | 
                       (df['ResponseId'] == 'Response ID'))]
         
         # Convert date columns to datetime
@@ -615,9 +624,6 @@ def evaluate_eligibility(matched_incentive, matched_community, matching_details,
     whitelist_matches = 0
     whitelist_eligible = 0
     
-    # Remove the tracking of used community IDs (MODIFIED)
-    # used_community_ids = set()  <-- This line has been removed
-    
     # Process each respondent to determine eligibility
     eligible_respondents = []
     ineligible_respondents = []
@@ -635,15 +641,6 @@ def evaluate_eligibility(matched_incentive, matched_community, matching_details,
             match_info = matching_map[incentive_id]
             community_id = match_info['community_id']
             ip_address = match_info['ip_address']
-            
-            # Remove the check for already used community surveys (MODIFIED)
-            # Skip if this community survey has already been used for an eligible respondent
-            # if community_id in used_community_ids:
-            #     respondent_data = extract_respondent_data(incentive_row, None, ip_address)
-            #     respondent_data['Reason'] = "Community survey already matched to another incentive response"
-            #     ineligible_respondents.append(respondent_data)
-            #     duplicate_comm_failures += 1
-            #     continue
             
             # Find the community row
             community_row = None
@@ -817,8 +814,6 @@ def evaluate_eligibility(matched_incentive, matched_community, matching_details,
             # Track eligibility
             if is_eligible:
                 eligible_respondents.append(respondent_data)
-                # Remove marking this community survey as used (MODIFIED)
-                # used_community_ids.add(community_id)
                 
                 # Count whitelist eligibility
                 if incentive_ip_whitelisted or community_ip_whitelisted:
@@ -940,20 +935,20 @@ def export_results(eligible_respondents, ineligible_respondents, detailed_statis
                 # Create "Within Range" tab - ALL respondents within distance threshold regardless of whitelist
                 within_range = df_eligible[df_eligible['distance_numeric'] <= distance_threshold]
                 within_range = within_range.drop(columns=['distance_numeric'])
-                within_range.to_excel(writer, sheet_name='Within Range', index=False)
+                within_range.to_excel(writer, sheet_name='Within_Range', index=False)
                 logger.info(f"Exported {len(within_range)} respondents within {distance_threshold} miles to Excel tab")
                 
                 # Create "Whitelisted Only" tab - ONLY respondents outside distance threshold eligible due to whitelist
                 whitelisted_only = df_eligible[(df_eligible['distance_numeric'] > distance_threshold) & 
                                              (df_eligible['IPWhitelisted'] == 'Yes')]
                 whitelisted_only = whitelisted_only.drop(columns=['distance_numeric'])
-                whitelisted_only.to_excel(writer, sheet_name='Whitelisted Only', index=False)
+                whitelisted_only.to_excel(writer, sheet_name='Whitelisted_Only', index=False)
                 logger.info(f"Exported {len(whitelisted_only)} respondents eligible only due to whitelisting to Excel tab")
                 
                 # Create a tab for all whitelisted respondents (for reference)
                 all_whitelisted = df_eligible[df_eligible['IPWhitelisted'] == 'Yes']
                 all_whitelisted = all_whitelisted.drop(columns=['distance_numeric'])
-                all_whitelisted.to_excel(writer, sheet_name='All Whitelisted', index=False)
+                all_whitelisted.to_excel(writer, sheet_name='All_Whitelisted', index=False)
                 
                 # Add a summary tab
                 summary_data = {
@@ -967,7 +962,7 @@ def export_results(eligible_respondents, ineligible_respondents, detailed_statis
                 pd.DataFrame(summary_data).to_excel(writer, sheet_name='Summary', index=False)
                 
                 # Export the original data with all columns
-                df_eligible.to_excel(writer, sheet_name='All Eligible', index=False)
+                df_eligible.to_excel(writer, sheet_name='All_Eligible', index=False)
             
             logger.info(f"Exported eligible respondents with tabs to {excel_output_file}")
         except Exception as e:

@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Survey Demographics Analysis</h1>
+    
+    {% if show_column_select %}
+    <!-- Step 2: Select Race/Ethnicity Column -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Select Race/Ethnicity Column</h5>
+            <form method="POST">
+                <div class="mb-3">
+                    <label for="race_column" class="form-label">Choose the column representing race/ethnicity:</label>
+                    <select class="form-select" id="race_column" name="race_column" required>
+                        {% for col in columns %}
+                        <option value="{{ col }}">{{ col }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Analyze Demographics</button>
+            </form>
+        </div>
+    </div>
+    {% elif show_chart %}
+    <!-- Step 3: Demographics Chart -->
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Survey Participants by Race/Ethnicity</h5>
+                    <div id="demographics-chart"></div>
+                    {% if demo_summary %}
+                    <h3 class="mt-5">Race/Ethnicity Breakdown</h3>
+                    <table class="table table-bordered w-auto">
+                        <thead>
+                            <tr>
+                                <th>Race/Ethnicity</th>
+                                <th>Count</th>
+                                <th>Percent</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in demo_summary %}
+                            <tr>
+                                <td>{{ row['race_ethnicity'] }}</td>
+                                <td>{{ row['count'] }}</td>
+                                <td>{{ row['percent'] }}%</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- Step 1: Upload Form -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Upload Survey Demographics</h5>
+            <form method="POST" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label for="surveyData" class="form-label">Survey Participant Demographics (CSV)</label>
+                    <input type="file" class="form-control" id="surveyData" name="surveyData" accept=".csv" required>
+                    <div class="form-text">Upload a CSV file containing a column for race/ethnicity.</div>
+                </div>
+                <button type="submit" class="btn btn-primary">Next</button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% block scripts %}
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+{% if show_chart %}
+<script>
+    var demographicsChart = {{ demographics_chart|safe }};
+    Plotly.newPlot('demographics-chart', demographicsChart.data, demographicsChart.layout);
+</script>
+{% endif %}
+{% endblock %}
+{% endblock %} 
