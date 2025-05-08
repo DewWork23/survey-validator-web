@@ -21,6 +21,7 @@ import re
 import ipaddress
 import tempfile
 import csv
+import traceback
 
 # Set up logging
 logging.basicConfig(
@@ -361,14 +362,30 @@ def read_and_prepare_dataframe(file_path, date_range=None):
         pandas.DataFrame: Preprocessed DataFrame
     """
     try:
-        # Print the first 5 lines for debugging
-        print("First 5 lines of file for delimiter/format check:")
-        with open(file_path, 'r', encoding='utf-8') as f:
-            for i in range(5):
-                print(f.readline().strip())
-        # Read the file with robust pandas options, skipping extra header rows
-        df = pd.read_csv(file_path, sep=',', on_bad_lines='skip', engine='python', skiprows=[1,2])
-        print(f"Read {len(df)} rows")
+        # First try to detect the file structure
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            first_lines = [next(f) for _ in range(5)]
+        
+        # Determine if we need to skip rows
+        skip_rows = []
+        for i, line in enumerate(first_lines):
+            if any(header in line.lower() for header in ['responseid', 'response id', 'recordeddate', 'recorded date']):
+                skip_rows.append(i)
+        
+        logger.info(f"Detected header structure, skipping rows: {skip_rows}")
+        
+        # Read the file with robust pandas options
+        df = pd.read_csv(
+            file_path,
+            sep=',',
+            on_bad_lines='warn',  # Changed from 'skip' to 'warn' to see problematic lines
+            engine='python',
+            skiprows=skip_rows,
+            encoding='utf-8',
+            error_bad_lines=False,
+            warn_bad_lines=True
+        )
+        
         logger.info(f"Successfully read {file_path} with {len(df)} rows and {len(df.columns)} columns")
         
         # Filter out header rows if they exist
@@ -400,6 +417,7 @@ def read_and_prepare_dataframe(file_path, date_range=None):
         
     except Exception as e:
         logger.error(f"Error reading file {file_path}: {e}")
+        logger.error(f"Stack trace: {traceback.format_exc()}")
         raise ValidationError(f"Error reading file {file_path}: {e}")
 
 
@@ -1250,7 +1268,6 @@ def process_surveys(community_file, incentive_file, start_date, end_date, config
         return [], [], {'error': str(ve)}
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}")
-        import traceback
         logger.error(traceback.format_exc())
         return [], [], {'error': f"Unexpected error: {str(e)}"}
 
@@ -1361,7 +1378,6 @@ def run_validation():
         
     except Exception as e:
         logger.error(f"Error in validation process: {str(e)}")
-        import traceback
         logger.error(traceback.format_exc())
         print(f"An error occurred: {str(e)}")
 
@@ -1371,6 +1387,5 @@ if __name__ == "__main__":
         run_validation()
     except Exception as e:
         print(f"An error occurred: {str(e)}")
-        import traceback
         traceback.print_exc()
         
