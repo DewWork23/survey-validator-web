@@ -15,6 +15,7 @@ celery = Celery()
 # Initialize Flask app
 # Use an app factory pattern for best practice
 def create_app():
+    print("REDIS_URL:", os.environ.get('REDIS_URL'))
     app = Flask(__name__)
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key-for-testing')
     app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads')
