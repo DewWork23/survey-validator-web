@@ -362,28 +362,26 @@ def read_and_prepare_dataframe(file_path, date_range=None):
         pandas.DataFrame: Preprocessed DataFrame
     """
     try:
-        # First try to detect the file structure
+        # Read the first 10 lines to find the header row
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-            first_lines = [next(f) for _ in range(5)]
-        
-        # Determine if we need to skip rows
-        skip_rows = []
+            first_lines = [next(f) for _ in range(10)]
+        header_row = None
         for i, line in enumerate(first_lines):
-            if any(header in line.lower() for header in ['responseid', 'response id', 'recordeddate', 'recorded date']):
-                skip_rows.append(i)
-        
-        logger.info(f"Detected header structure, skipping rows: {skip_rows}")
-        
-        # Read the file with robust pandas options
+            if 'IPAddress' in line or 'ip address' in line.lower():
+                header_row = i
+                break
+        if header_row is None:
+            raise ValidationError(f"Could not find a header row with 'IPAddress' in {file_path}")
+        logger.info(f"Detected header row at line {header_row+1} (0-based index {header_row})")
+        # Read the file using the detected header row
         df = pd.read_csv(
             file_path,
             sep=',',
-            on_bad_lines='warn',  # Only use on_bad_lines for pandas >=1.3
+            on_bad_lines='warn',
             engine='python',
-            skiprows=skip_rows,
+            header=header_row,
             encoding='utf-8'
         )
-        
         logger.info(f"Successfully read {file_path} with {len(df)} rows and {len(df.columns)} columns")
         
         # Filter out header rows if they exist
