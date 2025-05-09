@@ -14,4 +14,4 @@ services:
       pip install --upgrade pip setuptools wheel
       apt-get update && apt-get install -y build-essential python3-dev
       pip install -r requirements.txt
-    startCommand: python -m celery -A app.celery worker --loglevel=debug --concurrency=2 --max-tasks-per-child=50 
+    startCommand: python -m celery -A app.celery worker --loglevel=debug --concurrency=1 --max-tasks-per-child=50 
