@@ -434,7 +434,8 @@ def filter_completed_surveys(df, survey_type):
         finished_values = df['Finished'].value_counts()
         logger.info(f"{survey_type.capitalize()} 'Finished' column values: {finished_values.to_dict()}")
         
-        completed = df[df['Finished'].isin([True, 1, '1', 'True'])]
+        # Convert to string and uppercase for case-insensitive comparison
+        completed = df[df['Finished'].astype(str).str.upper() == 'TRUE']
     else:
         # For incentive surveys or when 'Finished' column is not available, use all rows
         logger.info(f"No 'Finished' column filter applied for {survey_type} survey - using all rows")
