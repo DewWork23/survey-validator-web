@@ -1114,7 +1114,7 @@ def export_results(eligible_respondents, ineligible_respondents, detailed_statis
     
     logger.info(f"Generated summary report: {file_paths['report_file']}")
 
-def process_surveys(community_file, incentive_file, start_date, end_date, config=None):
+def process_surveys(community_file, incentive_file, start_date, end_date, config=None, output_dir=None):
     """
     Process survey data to identify eligible respondents for incentives.
     
@@ -1124,14 +1124,16 @@ def process_surveys(community_file, incentive_file, start_date, end_date, config
         start_date: Start date for filtering (YYYY-MM-DD)
         end_date: End date for filtering (YYYY-MM-DD)
         config: Configuration dictionary with validation criteria
+        output_dir: Directory for output files
     
     Returns:
-        tuple: (eligible_respondents, ineligible_respondents, detailed_statistics)
+        tuple: (file_paths, detailed_statistics)
     """
-    # Use default config if none provided
     if config is None:
         config = DEFAULT_CONFIG
         logger.info("Using default configuration for validation")
+    if output_dir is None:
+        output_dir = os.path.dirname(community_file)
     
     # Log validation criteria
     logger.info(f"Validation criteria: distance <= {config.get('distance_threshold', 50)} miles, " 
@@ -1234,7 +1236,7 @@ def process_surveys(community_file, incentive_file, start_date, end_date, config
                 'ineligible': 0,
                 'whitelist_matches': whitelist_count
             }
-            return [], [], detailed_statistics
+            return {"error": "No matched survey responses found!"}, detailed_statistics
         
         # Evaluate eligibility
         logger.info("Determining eligibility for matched respondents...")
@@ -1261,15 +1263,29 @@ def process_surveys(community_file, incentive_file, start_date, end_date, config
             'whitelist_eligible': eligibility_statistics['whitelist_eligible']
         }
         
-        return eligible_respondents, ineligible_respondents, detailed_statistics
+        # Prepare output file paths
+        start_date_str = start_date.replace('-', '')
+        end_date_str = end_date.replace('-', '')
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+        base = f"{start_date_str}_to_{end_date_str}_{timestamp}"
+        file_paths = {
+            'eligible_file': os.path.join(output_dir, f"eligible_respondents_{base}.csv"),
+            'ineligible_file': os.path.join(output_dir, f"ineligible_respondents_{base}.csv"),
+            'valid_responses_file': os.path.join(output_dir, f"valid_responses_{base}.csv"),
+            'report_file': os.path.join(output_dir, f"validation_report_{base}.txt")
+        }
+        # Export results
+        export_results(eligible_respondents, ineligible_respondents, detailed_statistics, file_paths, (start_date, end_date), config)
+        # Return output file paths and stats
+        return file_paths, detailed_statistics
         
     except ValidationError as ve:
         logger.error(f"Validation error: {str(ve)}")
-        return [], [], {'error': str(ve)}
+        return {"error": str(ve)}, {}
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}")
         logger.error(traceback.format_exc())
-        return [], [], {'error': f"Unexpected error: {str(e)}"}
+        return {"error": f"Unexpected error: {str(e)}"}, {}
 
 
 def run_validation():
@@ -1332,26 +1348,9 @@ def run_validation():
         else:
             logger.info("No IP whitelist configured")
         
-        # Generate timestamp for output files
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M")
-        
-        # Output file paths
-        file_paths = {
-            'eligible_file': os.path.join(args.output_dir, f"eligible_respondents_{start_date}_to_{end_date}_{timestamp}.csv"),
-            'ineligible_file': os.path.join(args.output_dir, f"ineligible_respondents_{start_date}_to_{end_date}_{timestamp}.csv"),
-            'report_file': os.path.join(args.output_dir, f"validation_report_{start_date}_to_{end_date}_{timestamp}.txt"),
-            'valid_responses_file': os.path.join(args.output_dir, f"valid_survey_responses_{timestamp}.csv")
-        }
-        
         # Process surveys and determine eligibility
-        eligible_respondents, ineligible_respondents, detailed_statistics = process_surveys(
-            community_file, incentive_file, start_date, end_date, config
-        )
-        
-        # Export results
-        export_results(
-            eligible_respondents, ineligible_respondents, detailed_statistics,
-            file_paths, (start_date, end_date), config
+        file_paths, detailed_statistics = process_surveys(
+            community_file, incentive_file, start_date, end_date, config, args.output_dir
         )
         
         logger.info("\nAnalysis complete!")
@@ -1366,10 +1365,9 @@ def run_validation():
         print(f"Ineligible respondents: {detailed_statistics.get('ineligible', 0)}")
         print(f"Whitelisted IPs used: {detailed_statistics.get('whitelist_matches', 0)}")
         print(f"\nOutput files:")
-        print(f"- Eligible respondents: {file_paths['eligible_file']}")
-        print(f"- Ineligible respondents: {file_paths['ineligible_file']}")
-        print(f"- Validation report: {file_paths['report_file']}")
-        print(f"- Valid survey responses: {file_paths['valid_responses_file']}")
+        for key, path in file_paths.items():
+            if key != 'report_file':  # Don't list the report file itself
+                print(f"- {key.replace('_file', '').replace('_', ' ').title()}: {path}")
         
         # Check if Excel file was created
         excel_file = file_paths.get('excel_report')

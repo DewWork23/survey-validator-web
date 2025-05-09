@@ -61,7 +61,11 @@ def dashboard():
     # Sort by date (newest first)
     validations.sort(key=lambda x: x['date'], reverse=True)
     
-    return render_template('dashboard.html', validations=validations)
+    if not validations:
+        first_run = True
+    else:
+        first_run = False
+    return render_template('dashboard.html', validations=validations, first_run=first_run)
 
 @main.route('/validate', methods=['GET', 'POST'])
 @login_required
@@ -128,17 +132,30 @@ def validate():
 
             # Process surveys synchronously
             try:
-                process_surveys(community_path, incentive_path, start_date, end_date, config_path)
-                flash('Validation complete!')
+                results_folder = current_app.config['RESULTS_FOLDER']
+                file_paths, stats = process_surveys(
+                    community_path, incentive_path, start_date, end_date, config_path, output_dir=results_folder
+                )
+                if 'error' in file_paths:
+                    flash(f"Validation error: {file_paths['error']}")
+                    return redirect(request.url)
+                # Store file paths in session for confirmation/download links
+                session['validation_files'] = file_paths
+                flash('Validation complete! Download your results below.')
+                return redirect(url_for('main.validation_complete'))
             except Exception as process_error:
                 flash(f'Error during validation: {str(process_error)}')
                 return redirect(request.url)
-
-            return redirect(url_for('main.dashboard'))
         except Exception as e:
             flash(f'Error processing files: {str(e)}')
             return redirect(request.url)
     return render_template('validate.html')
+
+@main.route('/validation-complete')
+@login_required
+def validation_complete():
+    files = session.pop('validation_files', None)
+    return render_template('validation_complete.html', files=files)
 
 @main.route('/results')
 @login_required

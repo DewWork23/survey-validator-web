@@ -58,6 +58,16 @@
     </div>
     <div>Processing, please wait...</div>
 </div>
+{% if files %}
+<div class="alert alert-success mt-4">
+    <h5>Validation Complete!</h5>
+    <ul>
+        {% for key, path in files.items() %}
+            <li><a href="{{ url_for('main.download_file', filename=path.split('/')[-1]) }}">Download {{ key.replace('_file', '').replace('_', ' ').title() }}</a></li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}

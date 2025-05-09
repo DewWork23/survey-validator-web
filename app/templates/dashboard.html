@@ -52,4 +52,10 @@
         </div>
     </div>
 </div>
+
+{% if first_run %}
+<div class="alert alert-info mt-4">
+    <strong>Welcome!</strong> No previous validations found. Start by creating your first validation above.
+</div>
+{% endif %}
 {% endblock %} 
