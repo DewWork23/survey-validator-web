@@ -16,6 +16,7 @@ import uuid
 import numpy as np
 import collections
 from app.tasks import process_survey_files
+from upstash_redis import redis_set, redis_get
 
 # Import validate_surveys from the root directory
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -94,6 +95,11 @@ def validate():
             return redirect(request.url)
         
         try:
+            # Example: Set and get a value in Upstash Redis REST
+            redis_set("last_upload", "success")
+            redis_value = redis_get("last_upload")
+            print("Upstash Redis last_upload:", redis_value)
+
             # Save uploaded files
             community_filename = secure_filename(community_file.filename)
             incentive_filename = secure_filename(incentive_file.filename)
