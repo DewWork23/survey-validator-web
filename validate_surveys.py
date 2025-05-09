@@ -378,12 +378,10 @@ def read_and_prepare_dataframe(file_path, date_range=None):
         df = pd.read_csv(
             file_path,
             sep=',',
-            on_bad_lines='warn',  # Changed from 'skip' to 'warn' to see problematic lines
+            on_bad_lines='warn',  # Only use on_bad_lines for pandas >=1.3
             engine='python',
             skiprows=skip_rows,
-            encoding='utf-8',
-            error_bad_lines=False,
-            warn_bad_lines=True
+            encoding='utf-8'
         )
         
         logger.info(f"Successfully read {file_path} with {len(df)} rows and {len(df.columns)} columns")
