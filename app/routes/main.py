@@ -15,7 +15,6 @@ import difflib
 import uuid
 import numpy as np
 import collections
-from app.tasks import process_survey_files
 from upstash_redis import redis_set, redis_get
 
 # Import validate_surveys from the root directory
@@ -103,18 +102,14 @@ def validate():
             # Save uploaded files
             community_filename = secure_filename(community_file.filename)
             incentive_filename = secure_filename(incentive_file.filename)
-            
             community_path = os.path.join(current_app.config['UPLOAD_FOLDER'], community_filename)
             incentive_path = os.path.join(current_app.config['UPLOAD_FOLDER'], incentive_filename)
-            
             community_file.save(community_path)
             incentive_file.save(incentive_path)
-            
+
             # Load config with default whitelist
             config = load_default_config()
             config_path = None
-            
-            # Check if config file was uploaded
             if 'config_file' in request.files and request.files['config_file'].filename != '':
                 config_file = request.files['config_file']
                 if config_file.filename.endswith('.json'):
@@ -122,69 +117,23 @@ def validate():
                     config_path = os.path.join(current_app.config['UPLOAD_FOLDER'], config_filename)
                     config_file.save(config_path)
                     user_config = load_config(config_path)
-                    # Merge user config with default config
                     config.update(user_config)
                 else:
                     flash('Configuration file must be a JSON file')
                     return redirect(request.url)
-            
-            # Start background task
-            task = process_survey_files.delay(community_path, incentive_path, start_date, end_date, config_path)
-            
-            # Store task ID in session
-            session['task_id'] = task.id
-            
-            # Redirect to status page
-            return redirect(url_for('main.validate_status'))
-            
+
+            # Synchronous processing (replace Celery task)
+            # You may want to call your validation logic directly here
+            # For example, call a function like process_surveys(community_path, incentive_path, start_date, end_date, config_path)
+            # and handle the result synchronously
+            # Remove session['task_id'] and status redirect
+            # Instead, render a results page or flash a message
+            flash('Validation complete! (synchronous processing)')
+            return redirect(url_for('main.dashboard'))
         except Exception as e:
             flash(f'Error processing files: {str(e)}')
             return redirect(request.url)
-    
     return render_template('validate.html')
-
-@main.route('/validate/status')
-@login_required
-def validate_status():
-    task_id = session.get('task_id')
-    if not task_id:
-        return redirect(url_for('main.validate'))
-    
-    task = process_survey_files.AsyncResult(task_id)
-    
-    if task.state == 'PENDING':
-        response = {
-            'state': task.state,
-            'status': 'Task is pending...'
-        }
-    elif task.state == 'PROGRESS':
-        response = {
-            'state': task.state,
-            'current': task.info.get('current', 0),
-            'total': task.info.get('total', 'unknown'),
-            'status': task.info.get('status', '')
-        }
-    elif task.state == 'SUCCESS':
-        response = {
-            'state': task.state,
-            'result': task.info
-        }
-        # Clear task ID from session
-        session.pop('task_id', None)
-    else:
-        response = {
-            'state': task.state,
-            'error': str(task.info)
-        }
-        # Clear task ID from session
-        session.pop('task_id', None)
-    
-    return jsonify(response)
-
-@main.route('/validate/status-page')
-@login_required
-def validate_status_page():
-    return render_template('validate_status.html')
 
 @main.route('/results')
 @login_required

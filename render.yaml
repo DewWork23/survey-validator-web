@@ -6,12 +6,4 @@ services:
       pip install --upgrade pip setuptools wheel
       apt-get update && apt-get install -y build-essential python3-dev
       pip install -r requirements.txt
-    startCommand: gunicorn app:create_app()
-  - type: worker
-    name: survey-validator-worker
-    env: python
-    buildCommand: |
-      pip install --upgrade pip setuptools wheel
-      apt-get update && apt-get install -y build-essential python3-dev
-      pip install -r requirements.txt
-    startCommand: python -m celery -A app.celery worker --loglevel=debug --concurrency=1 --max-tasks-per-child=50 
+    startCommand: gunicorn app:create_app() 
