@@ -557,7 +557,7 @@ def match_surveys(community_df, incentive_df):
                 
                 # Count match types
                 ip_matches += 1
-                ip_matched_count[ip_address] += 1
+                ip_matched_count[ip_address] = match_count
                 
                 # Track if this is a unique or multiple match
                 if match_count == 1:
@@ -1161,6 +1161,22 @@ def process_surveys(community_file, incentive_file, start_date, end_date, config
         # Ensure IP address columns exist
         community_with_ip = ensure_ip_address_column(community_completed, 'community')
         incentive_with_ip = ensure_ip_address_column(incentive_completed, 'incentive')
+
+        # Strip whitespace from IP addresses
+        community_with_ip['IPAddress'] = community_with_ip['IPAddress'].astype(str).str.strip()
+        incentive_with_ip['IPAddress'] = incentive_with_ip['IPAddress'].astype(str).str.strip()
+
+        # Debug: Print unique IPs and overlaps
+        community_ips_set = set(community_with_ip['IPAddress'].dropna())
+        incentive_ips_set = set(incentive_with_ip['IPAddress'].dropna())
+        overlap_ips = community_ips_set & incentive_ips_set
+        logger.info(f"Unique community IPs: {len(community_ips_set)}")
+        logger.info(f"Unique incentive IPs: {len(incentive_ips_set)}")
+        logger.info(f"Overlapping IPs: {len(overlap_ips)}")
+        if overlap_ips:
+            logger.info(f"Sample overlapping IPs: {list(overlap_ips)[:5]}")
+        else:
+            logger.warning("No overlapping IPs found between community and incentive surveys!")
         
         # Check for whitelisted IPs
         whitelist_count = 0
