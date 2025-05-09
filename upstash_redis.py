@@ -15,6 +15,8 @@ def redis_command(command):
         headers=HEADERS,
         json={"command": command}
     )
+    if not resp.ok:
+        print("Upstash error response:", resp.text)
     resp.raise_for_status()
     return resp.json()
 
