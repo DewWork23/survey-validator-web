@@ -94,10 +94,14 @@ def validate():
             return redirect(request.url)
         
         try:
-            # Example: Set and get a value in Upstash Redis REST
-            redis_set("last_upload", "success")
-            redis_value = redis_get("last_upload")
-            print("Upstash Redis last_upload:", redis_value)
+            # Try to use Upstash Redis if available, but don't fail if it's not
+            try:
+                redis_set("last_upload", "success")
+                redis_value = redis_get("last_upload")
+                print("Upstash Redis last_upload:", redis_value)
+            except Exception as redis_error:
+                print("Upstash Redis error (non-critical):", str(redis_error))
+                # Continue execution even if Redis fails
 
             # Save uploaded files
             community_filename = secure_filename(community_file.filename)
@@ -122,13 +126,14 @@ def validate():
                     flash('Configuration file must be a JSON file')
                     return redirect(request.url)
 
-            # Synchronous processing (replace Celery task)
-            # You may want to call your validation logic directly here
-            # For example, call a function like process_surveys(community_path, incentive_path, start_date, end_date, config_path)
-            # and handle the result synchronously
-            # Remove session['task_id'] and status redirect
-            # Instead, render a results page or flash a message
-            flash('Validation complete! (synchronous processing)')
+            # Process surveys synchronously
+            try:
+                process_surveys(community_path, incentive_path, start_date, end_date, config_path)
+                flash('Validation complete!')
+            except Exception as process_error:
+                flash(f'Error during validation: {str(process_error)}')
+                return redirect(request.url)
+
             return redirect(url_for('main.dashboard'))
         except Exception as e:
             flash(f'Error processing files: {str(e)}')
