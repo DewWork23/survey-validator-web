@@ -10,6 +10,8 @@ HEADERS = {
 }
 
 def redis_command(command):
+    # Ensure all command arguments are strings
+    command = [str(arg) for arg in command]
     resp = requests.post(
         UPSTASH_REDIS_REST_URL,
         headers=HEADERS,
